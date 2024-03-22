@@ -21,7 +21,7 @@ client.on('data', (data) => {
 
   //Write data back to the server
   client.write('HTTP/1.1 200 OK\r\n\r\n');
-  client.end();
+  // client.end();
 })
 
 server.listen(4221, "localhost");
