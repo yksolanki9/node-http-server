@@ -1,9 +1,25 @@
 const net = require("net");
 
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-console.log("Logs from your program will appear here!");
+const HTTP_VERSION = 'HTTP/1.1';
+const CLRF = '\r\n'
 
-// Uncomment this to pass the first stage
+//HTTP Status code and status string map
+const HTTP_STATUS_CODE = {
+  200: 'OK',
+  404: 'Not Found'
+}
+
+//Parse and get request method, path and http version from request line
+const parseRequestLine = (data) => {
+  const requestLine = data.toString().split(CLRF)[0];
+  return requestLine.split(' ');
+}
+
+//Generate response status line based on status code
+const getResponseStatusLine = (statusCode) => {
+  return HTTP_VERSION + ' ' +  statusCode + ' ' + HTTP_STATUS_CODE[statusCode] + ' ' + CLRF + CLRF
+}
+
 const server = net.createServer((socket) => {
   socket.on("close", () => {
     socket.end();
@@ -12,19 +28,10 @@ const server = net.createServer((socket) => {
 
   //Read data from the client
   socket.on("data", (data) => {
-    console.log("Received data from client!", data.toString());
-
-    const parsedData = data.toString().split('\r\n');
-    const path = parsedData[0].split(' ')[1];
-
-    const res = {status: 404, message: 'Not Found'};
-    if(path === '/'){
-      res.status = 200;
-      res.message = 'OK'
-    }
+    const [, path] = parseRequestLine(data);
 
     //Respond to the client
-    socket.write(`HTTP/1.1 ${res.status} ${res.message}\r\n\r\n`);
+    socket.write(path === '/' ? getResponseStatusLine(200) : getResponseStatusLine(404));
   });
 });
 
