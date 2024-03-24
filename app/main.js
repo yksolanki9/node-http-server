@@ -14,8 +14,17 @@ const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     console.log("Received data from client!", data.toString());
 
+    const parsedData = data.toString().split('\r\n');
+    const path = parsedData[0].split(' ')[1];
+
+    const res = {status: 404, message: 'Not Found'};
+    if(path === '/'){
+      res.status = 200;
+      res.message = 'OK'
+    }
+
     //Respond to the client
-    socket.write("HTTP/1.1 200 OK\r\n\r\n");
+    socket.write(`HTTP/1.1 ${res.status} ${res.message}\r\n\r\n`);
   });
 });
 
