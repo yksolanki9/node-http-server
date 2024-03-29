@@ -11,10 +11,25 @@ const HTTP_STATUS_CODE = {
   404: 'Not Found'
 }
 
-//Parse and get request method, path and http version from request line
-const parseRequestLine = (data) => {
-  const requestLine = data.toString().split(CRLF)[0];
-  return requestLine.split(' ');
+//Parse the request data
+const parseRequest = (data) => {
+  //Split the data by CRLF
+  const parsedBody = data.toString().split(CRLF);
+
+  //Parse the request line
+  const [method, path, httpVersion] = parsedBody[0].split(' ');
+
+  //Get all the headers in JSON format
+  const bodyStartIndex = parsedBody.findIndex(val => val === '');
+  const headersString = parsedBody.slice(1, bodyStartIndex);
+  const headers = getJsonFromStringArray(headersString);
+
+  return {
+    method,
+    path,
+    httpVersion,
+    headers
+  }
 }
 
 //Generate response status line based on status code
@@ -27,6 +42,17 @@ const getStringFromJson = (json) => {
   return Object.entries(json).map(([key, value]) => `${key}: ${value}`).join(CRLF) + CRLF
 }
 
+//Convert array of strings to JSON
+const getJsonFromStringArray = (arr) => {
+  return arr.reduce((acc, curr) => {
+    const [key, value] = curr.split(':').map(val => val.trim());
+    return {
+      ...acc,
+      [key]: value
+    }
+  } , {});
+}
+
 //Generate Representation Headers
 const generateRepresentationHeaders = (body) => {
   const headerJson = {
@@ -35,11 +61,6 @@ const generateRepresentationHeaders = (body) => {
   }
 
   return getStringFromJson(headerJson)
-}
-
-//Get random string from path
-const getRandomString = (path) => {
-  return path.split('/echo/')[1];
 }
 
 //Generate response string
@@ -61,9 +82,17 @@ const server = net.createServer((socket) => {
 
   //Read data from the client
   socket.on("data", (data) => {
-    const [, path] = parseRequestLine(data);
-    const randomString = getRandomString(path);
-    const res = generateResponse(randomString || path === '/' ? 200 : 404, randomString);
+    const {path, headers} = parseRequest(data);
+
+    let body;
+    if(path.includes('/echo/')) {
+      body = path.split('/echo/')[1];
+    } else if(path === '/user-agent') {
+      body = headers['User-Agent'];
+    }
+
+    // const body = path === '/user-agent' ? getHeader() : getRandomString(path);
+    const res = generateResponse(body || path === '/' ? 200 : 404, body);
 
     //Respond to the client
     socket.write(res);
