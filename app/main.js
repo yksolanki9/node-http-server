@@ -81,8 +81,8 @@ const server = net.createServer((socket) => {
   });
 
   //Read data from the client
-  socket.on("data", (data) => {
-    const {path, headers} = parseRequest(data);
+  socket.on("data", (buffer) => {
+    const {path, headers} = parseRequest(buffer);
 
     let body;
     if(path.includes('/echo/')) {
