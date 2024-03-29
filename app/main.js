@@ -1,4 +1,5 @@
 const net = require("net");
+const fs = require("fs");
 
 const HTTP_VERSION = 'HTTP/1.1';
 const CR = '\r';
@@ -54,24 +55,22 @@ const getJsonFromStringArray = (arr) => {
 }
 
 //Generate Representation Headers
-const generateRepresentationHeaders = (body) => {
+const generateRepresentationHeaders = (body, headers) => {
   const headerJson = {
    'Content-Type': 'text/plain',
-   'Content-Length': body?.length ?? 0
+   'Content-Length': body?.length ?? 0,
+   ...headers
   }
 
   return getStringFromJson(headerJson)
 }
 
 //Generate response string
-const generateResponse = (statusCode, body) => {
+const generateResponse = (statusCode, body, headers = {}) => {
   let res = getResponseStatusLine(statusCode);
-
-  if (body) {
-    res += generateRepresentationHeaders(body);
-    res += LF + body + CRLF;
-  }
-  return res + CRLF;
+  res += generateRepresentationHeaders(body, headers);
+  res += !!body ?  LF + body : CRLF;
+  return res;
 }
 
 const server = net.createServer((socket) => {
@@ -82,17 +81,28 @@ const server = net.createServer((socket) => {
 
   //Read data from the client
   socket.on("data", (buffer) => {
-    const {path, headers} = parseRequest(buffer);
+    const {path, headers: reqHeaders} = parseRequest(buffer);
 
     let body;
+    let headers = {}
     if(path.includes('/echo/')) {
       body = path.split('/echo/')[1];
     } else if(path === '/user-agent') {
-      body = headers['User-Agent'];
+      body = reqHeaders['User-Agent'];
+    } else if(path.includes('/files/')) {
+      try {
+        const filePath = process.argv[3] +  path.split('/files/')[1];
+        const file = fs.readFileSync(filePath);
+        headers = {
+          'Content-Type': 'application/octet-stream',
+        }
+        body = file;
+      } catch(e) {
+        body = null;
+      }
     }
 
-    // const body = path === '/user-agent' ? getHeader() : getRandomString(path);
-    const res = generateResponse(body || path === '/' ? 200 : 404, body);
+    const res = generateResponse(body || path === '/' ? 200 : 404, body, headers);
 
     //Respond to the client
     socket.write(res);
